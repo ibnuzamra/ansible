@@ -1,0 +1,48 @@
+---
+- host: all
+  become: yes
+  vars:
+    server_name: "{{ ansible_default_ipv4.address }}"
+    document_root: /var/www/html
+  task:
+    - name: Update apt cache and install Nginx
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+
+    - name: Pull file from source
+      git:
+        repo: 'https://github.com/cloudacademy/static-website-example.git'
+        dest: {{ document_root }}
+
+    - name: Nginx template
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+      notify: Restart Nginx
+
+    - name: Enable new site
+      file:
+        src: /etc/nginx/sites-available/default
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+      notify: Restart Nginx
+
+    - name: Allow all access to tcp port 80
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+    - name: Allow all access to tcp port 80
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
